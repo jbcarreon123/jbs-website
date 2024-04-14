@@ -1,4 +1,4 @@
-# jb-is-a-dev-server
+# jbs-website-server
 
 To install dependencies:
 
