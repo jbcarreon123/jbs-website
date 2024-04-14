@@ -1,0 +1,40 @@
+.projects-view .project {
+    display: inline-block;
+    background-color: var(--view-background);
+    padding: 10px;
+    border: 5px solid var(--background);
+    margin-right: -5px;
+}
+
+.project div {   
+    box-sizing: border-box;
+}
+
+.project-links a {
+    font-size: 22px;
+    letter-spacing: 0;
+}
+
+.blog-description {
+    padding-top: 10px;
+    width: 350px;
+}
+
+.project-tags {
+    width: 350px;
+}
+
+.blog-author {
+    width: 350px;
+}
+
+.project-tag {
+    display: inline-block;
+    background: var(--tag-background);
+    width: fit-content;
+    border-radius: 5px;
+    font-size: 12px;
+    padding: 5px;
+    border: 3px solid var(--view-background);
+    margin-right: -10px;
+}

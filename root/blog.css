@@ -1,0 +1,82 @@
+.blog-title {
+    font-size: 67px;
+    font-weight: 600;
+}
+
+.blogv-title {
+    font-size: 45px;
+    font-weight: 600;
+}
+
+.blog-container, .top-view {
+    padding: 50px;
+    padding-bottom: 10px;
+}
+
+.blog-content {
+    padding-top: 10px;
+    color: var(--text-color);
+}
+
+.blog-content h1, .blog-content h2 {
+    padding-top: 10px;
+}
+
+.blog-content h1 {
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--text-color);
+}
+
+.blog-content img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+}
+
+.blog-content blockquote {
+    border-left: 5px solid gray;
+    padding-left: 10px;
+}
+
+.blog-content code {
+    background: rgb(44, 41, 41);
+    font-size: 16px !important;
+    padding: 4px;
+    color: white;
+    border-radius: 5px;
+}
+
+.blog-content a, .blogv-title a {
+    color: var(--text-color);   
+}
+
+.blog-content a:hover, .blogv-title a:hover {
+    color: var(--text-color-hover)
+}
+
+.blog-author {
+    color: var(--text-color);
+    font-size: 20px;
+}
+
+.col2 div {
+    display: block;
+}
+
+.blog div {   
+    padding-bottom: 5px;
+    width: 350px;
+}
+
+.blogs-view .blog {
+    display: inline-block;
+    background-color: var(--view-background);
+    padding: 10px;
+    border: 5px solid var(--background);
+    margin-right: -5px;
+}
+
+.blogs-view, .projects-view {
+    padding: 10px 50px;
+    box-sizing: border-box;
+}

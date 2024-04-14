@@ -1,0 +1,10 @@
+{
+    "tags": [ "discord-bot", "typescript", "temp-channels" ],
+    "name": "Liberation",
+    "authors": "jbcarreon123, Gowthr, Moore, and Jaden",
+    "description": "Liberation is a Discord bot that offers temporary voice channels, temporary text channels, and tickets.",
+    "links": {
+        "github": "https://github.com/liberation-dev/Liberation",
+        "discord": "https://discord.gg/nqgwdD7H"
+    }
+}

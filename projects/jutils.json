@@ -1,0 +1,9 @@
+{
+    "tags": [ "rust", "discord-bot" ],
+    "name": "jUtils",
+    "authors": "jbcarreon123",
+    "description": "jUtils is a utilities discord bot, that is written in Rust.",
+    "links": {
+        "github": "https://github.com/jbcarreon123/jUtils"
+    }
+}

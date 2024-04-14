@@ -1,0 +1,9 @@
+# jbcarreon123's website's robots.txt
+# Beep, boop. I'm maybe a bot, maybe a human. You don't know it.
+# If you know it, pretend you don't know it.
+
+User-agent: *
+Disallow: /imgs/*
+Disallow: /fa/*
+Disallow: /api/*
+Disallow: /404

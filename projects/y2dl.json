@@ -1,0 +1,9 @@
+{
+    "tags": [ "python", "discord-bot" ],
+    "name": "Y2DL",
+    "authors": "jbcarreon123",
+    "description": "Y2DL is a Discord bot that gets YouTube and Twitch channel information.",
+    "links": {
+        "github": "https://github.com/jbcarreon123/Y2DL"
+    }
+}
