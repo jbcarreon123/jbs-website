@@ -21,6 +21,7 @@
 body {
     background: var(--background);
     color: var(--text-color);
+    height: 100%;
 }
 
 .font-pri {
@@ -56,17 +57,19 @@ body {
     animation-fill-mode: both;
 }
 
+.img, .img-info {
+    width: 75%;
+    transition: width 0.5s;
+}
+
+@media screen and (max-width: 700px) {
+    .img, .img-info {
+        width: 100%;
+    }
+}
+
 .img img {
     width: 100%;
-    height: 100%;
-}
-
-.img-info .img-info-left {
-    float: left;
-}
-
-.img-info .img-info-right {
-    float: right;
 }
 
 .noscript .content {
@@ -81,13 +84,19 @@ body {
     text-align: center;
 }
 
-.img-container {
-    position: absolute;
-    top: 50%;
-    transform: translate(-5px, -50%);
-    text-align: center;
-    padding: 10px;
+html, body, .img-container {
+    height: 100%;
 }
+
+.img-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+
 
 .title {
     font-weight: 600;
