@@ -152,6 +152,25 @@ app.get('/main.css', (req, res) => {
   res.sendFile(path.join(__dirname, 'root/main.css'));
 });
 
+app.get('/.well-known/:file', (req, res) => {
+  const file = req.params.file;
+  const filePath = path.join(__dirname, `.well-known/${file}.txt`)
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404);
+    if (req.accepts('html')) {
+      res.sendFile(path.join(__dirname, 'root/404.html'));
+      return;
+    }
+    if (req.accepts('json')) {
+      res.json({ error: 'Not found' });
+      return;
+    }
+    res.type('txt').send('[404] Maybe there is something missing.');
+  }
+})
+
 app.get('/re/:redirect', (req, res) => {
   const redi = req.params.redirect;
   const redirectPath = path.join(__dirname, `redirects/${redi}.txt`);
