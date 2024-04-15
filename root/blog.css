@@ -46,14 +46,6 @@
     border-radius: 5px;
 }
 
-.blog-content a, .blogv-title a {
-    color: var(--text-color);   
-}
-
-.blog-content a:hover, .blogv-title a:hover {
-    color: var(--text-color-hover)
-}
-
 .blog-author {
     color: var(--text-color);
     font-size: 20px;

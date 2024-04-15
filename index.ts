@@ -1,17 +1,44 @@
 import express from "express";
+import sharp from 'sharp';
 import fs from 'fs';
+const https = require('https');
 import { marked } from "marked";
 const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const port = 8080;
+const port = 443;
+const SITE_ADDRESS = 'jb.is-a.dev';
+
+const credentials = {
+    key: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/privkey.pem`, 'utf8'),
+    cert: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/fullchain.pem`, 'utf8')
+};
+
+const httpsServer = https.createServer(credentials, app);
 
 interface Metadata {
   directoryName: string;
   name: string;
   author: string;
   description: string;
+}
+
+async function getImageInfo(filePath: string): Promise<{ width: number | undefined, height: number | undefined, size: number }> {
+  try {
+      const image = sharp(filePath);
+      const metadata = await image.metadata();
+      const stats = fs.statSync(filePath);
+      const fileSizeInBytes = stats.size;
+
+      return {
+          width: metadata.width,
+          height: metadata.height,
+          size: fileSizeInBytes
+      };
+  } catch (err) {
+      throw new Error(`Error processing image`);
+  }
 }
 
 interface Project {
@@ -108,6 +135,13 @@ function getAllProjects(dir: string): Project[] {
   return allProject;
 }
 
+app.use((req,res,next) => {
+  if (req.hostname.includes(SITE_ADDRESS)) 
+    next();
+  else
+    res.status(403).end(`Access with ${req.hostname} is restricted. Use ${SITE_ADDRESS} instead.`);
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'root/index.html'));
 });
@@ -137,6 +171,37 @@ app.get('/re/:redirect', (req, res) => {
 })
 
 app.get('/imgs/:img', (req, res) => {
+  const imgFile = req.params.img
+  const filePath = path.join(__dirname, `root/img.html`)
+  const img = path.join(__dirname, `imgs/${imgFile}`);
+  if (fs.existsSync(img)) {
+    fs.readFile(filePath, 'utf-8', (err, data) => {
+        var  hData = data;
+        getImageInfo(img).then((meta) => {
+          hData = hData.replaceAll('[img.path]', `/raw_img/${imgFile}`)
+          hData = hData.replaceAll('[img.name]', `${imgFile}`)
+          hData = hData.replaceAll('[img.dimensions]', `${meta.width}x${meta.height}`)
+          hData = hData.replaceAll('[img.width]', `${meta.width}`)
+          hData = hData.replaceAll('[img.height]', `${meta.height}`)
+          hData = hData.replaceAll('[img.size]', `${(meta.size / 1048576).toFixed(2)}MB`)
+          res.send(hData);
+        });
+    });
+  } else {
+    res.status(404);
+    if (req.accepts('html')) {
+      res.sendFile(path.join(__dirname, 'root/404.html'));
+      return;
+    }
+    if (req.accepts('json')) {
+      res.json({ error: 'Not found' });
+      return;
+    }
+    res.type('txt').send('[404] Maybe there is something missing.');
+  }
+})
+
+app.get('/raw_img/:img', (req, res) => {
   const imgFile = req.params.img
   if (fs.existsSync(path.join(__dirname, `imgs/${imgFile}`))) {
     res.sendFile(path.join(__dirname, `imgs/${imgFile}`));
@@ -355,6 +420,6 @@ app.get('/:doc', (req, res) => {
   }
 })
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}...`);
+httpsServer.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
 });

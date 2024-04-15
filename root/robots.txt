@@ -7,3 +7,4 @@ Disallow: /imgs/*
 Disallow: /fa/*
 Disallow: /api/*
 Disallow: /404
+Disallow: /408
