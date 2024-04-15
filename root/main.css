@@ -59,9 +59,9 @@ body {
 
 .img, .img-info {
     width: 75%;
-    max-width: 500px;
-    max-height: 500px;
-    transition: width 0.5s;
+    max-width: 800px;
+    max-height: 600px;
+    transition: all 0.5s ease-in-out;
 }
 
 @media screen and (max-width: 700px) {
@@ -71,9 +71,9 @@ body {
 }
 
 .img img {
-    max-width: 500px;
-    max-height: 500px;
+    object-fit:contain;
     width: 100%;
+    max-height: 600px;
 }
 
 .noscript .content {
