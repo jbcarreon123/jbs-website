@@ -59,6 +59,8 @@ body {
 
 .img, .img-info {
     width: 75%;
+    max-width: 500px;
+    max-height: 500px;
     transition: width 0.5s;
 }
 
@@ -69,6 +71,8 @@ body {
 }
 
 .img img {
+    max-width: 500px;
+    max-height: 500px;
     width: 100%;
 }
 
@@ -94,6 +98,7 @@ html, body, .img-container {
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    gap: 5px;
 }
 
 
