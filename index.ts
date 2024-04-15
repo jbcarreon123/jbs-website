@@ -60,6 +60,15 @@ interface Blog {
   description: string
 }
 
+app.use((req,res,next) => {
+  if (req.hostname.includes(SITE_ADDRESS)) 
+    next();
+  else {
+    res.status(403);
+    res.json({ 'error': `Unfortunately, due to security purposes, you are not allowed to use ${req.hostname}. Use ${SITE_ADDRESS} for requests instead.` })
+  }
+});
+
 app.use('/api', cors());
 
 function getMetadataFiles(dir: string): { filePath: string; directoryName: string }[] {
@@ -134,13 +143,6 @@ function getAllProjects(dir: string): Project[] {
 
   return allProject;
 }
-
-app.use((req,res,next) => {
-  if (req.hostname.includes(SITE_ADDRESS)) 
-    next();
-  else
-    res.status(403).end(`Access with ${req.hostname} is restricted. Use ${SITE_ADDRESS} instead.`);
-});
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'root/index.html'));
@@ -421,5 +423,9 @@ app.get('/:doc', (req, res) => {
 })
 
 httpsServer.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+    console.log(`HTTPS Server is running on port ${port}`);
 });
+
+app.listen(80, () => {
+    console.log(`HTTP Server is running on port 80`)
+})
