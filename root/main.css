@@ -29,7 +29,7 @@ body {
 }
 
 .font-sec {
-    font-family: 'Martian Mono', sans-serif;
+    font-family: 'Martian Mono', monospace;
 }
 
 @keyframes show-hide {
