@@ -2,20 +2,57 @@ import express from "express";
 import sharp from 'sharp';
 import fs from 'fs';
 const https = require('https');
-import { marked } from "marked";
+import { Marked } from "marked";
+import { env } from "bun";
 const path = require('path');
 const cors = require('cors');
+import markedShiki from 'marked-shiki'
+import { getHighlighter, bundledLanguages } from 'shiki'
+// npm i @shikijs/transformers
+import {
+  transformerNotationDiff,
+  transformerNotationHighlight,
+  transformerNotationWordHighlight,
+  transformerNotationFocus,
+  transformerNotationErrorLevel,
+  transformerMetaHighlight,
+  transformerMetaWordHighlight
+} from '@shikijs/transformers'
+
+const highlighter = await getHighlighter({
+  langs: Object.keys(bundledLanguages),
+  themes: ['min-dark', 'min-light']
+})
+
+const marked = await new Marked()
+.use(
+  markedShiki({
+    highlight(code, lang, props) {
+      return highlighter.codeToHtml(code, {
+        lang,
+        themes: {
+          light: 'min-dark',
+          dark: 'min-light'
+        },
+        meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
+        transformers: [
+          transformerNotationDiff(),
+          transformerNotationHighlight(),
+          transformerNotationWordHighlight(),
+          transformerNotationFocus(),
+          transformerNotationErrorLevel(),
+          transformerMetaHighlight(),
+          transformerMetaWordHighlight()
+        ]
+      })
+    }
+  })
+);
 
 const app = express();
 const port = 443;
-const SITE_ADDRESS = 'jb.is-a.dev';
 
-const credentials = {
-    key: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/privkey.pem`, 'utf8'),
-    cert: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/fullchain.pem`, 'utf8')
-};
-
-const httpsServer = https.createServer(credentials, app);
+const SITE_ADDRESS = !env.JBIAD_DEBUG ? 'jb.is-a.dev' : 'jb-linpc';
 
 interface Metadata {
   directoryName: string;
@@ -193,7 +230,7 @@ app.get('/re/:redirect', (req, res) => {
 
 app.get('/imgs/:img', (req, res) => {
   const imgFile = req.params.img
-  const filePath = path.join(__dirname, `root/img.html`)
+  const filePath = path.join(__dirname, `root-nr/img.html`)
   const img = path.join(__dirname, `imgs/${imgFile}`);
   if (fs.existsSync(img)) {
     fs.readFile(filePath, 'utf-8', (err, data) => {
@@ -254,7 +291,7 @@ app.get('/imgs', (req, res) => {
 })
 
 app.get('/projects', (req, res) => {
-  const projectPath = path.join(__dirname, `root/projects.html`);
+  const projectPath = path.join(__dirname, `root-nr/projects.html`);
   fs.readFile(projectPath, 'utf8', (bErr, bData) => {
     let projects = "";
     const directoryPath = path.join(__dirname, `projects/`);
@@ -331,20 +368,24 @@ app.get('/blogs/:blog', (req, res) => {
   const blogPage = req.params.blog;
   const filePath = path.join(__dirname, `blogs/${blogPage}/contents.md`);
   const metaPath = path.join(__dirname, `blogs/${blogPage}/metadata.json`);
-  const blogPath = path.join(__dirname, `root/blog.html`);
+  const blogPath = path.join(__dirname, `root-nr/blog.html`);
   if (fs.existsSync(filePath) && fs.existsSync(metaPath)) {
     fs.readFile(blogPath, 'utf8', (bErr, bData) => {
       var hData = bData;
-      fs.readFile(filePath, 'utf-8', (err, data) => {
+      fs.readFile(filePath, 'utf-8', async (err, data) => {
           const metadata = readMetadata(metaPath, "");
           if (err) {
             return res.status(500).send('Error reading the file');
           }
-          const html = marked(data);
+          try {
+            const html = await marked.parse(data)
+            hData = hData.replaceAll('[blog.content]', `${html}`)
+          } catch (e) {
+            console.error(e)
+          }
           hData = hData.replaceAll('[blog.title]', `${metadata.name}`)
           hData = hData.replaceAll('[blog.author]', `by ${metadata.author}`)
           hData = hData.replaceAll('[blog.description]', `${metadata.description}`)
-          hData = hData.replaceAll('[blog.content]', `${html}`)
           hData = hData.replaceAll('[blog.oembed]', `http://${req.get('host')}/oembed_blogs/${blogPage}`)
           res.send(hData);
       });
@@ -379,7 +420,7 @@ app.get('/oembed_blogs/:blog', (req, res) => {
 })
 
 app.get('/blogs', (req, res) => {
-  const blogPath = path.join(__dirname, `root/blogs.html`);
+  const blogPath = path.join(__dirname, `root-nr/blogs.html`);
   fs.readFile(blogPath, 'utf8', (bErr, bData) => {
     let blogs = "";
     const directoryPath = path.join(__dirname, `blogs/`);
@@ -441,6 +482,14 @@ app.get('/:doc', (req, res) => {
   }
 })
 
+if (!env.JBIAD_DEBUG) {
+const credentials = {
+  key: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/privkey.pem`, 'utf8'),
+  cert: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/fullchain.pem`, 'utf8')
+};
+
+const httpsServer = https.createServer(credentials, app);
+
 httpsServer.listen(port, () => {
     console.log(`HTTPS Server is running on port ${port}`);
 });
@@ -448,3 +497,8 @@ httpsServer.listen(port, () => {
 app.listen(80, () => {
     console.log(`HTTP Server is running on port 80`)
 })
+} else {
+app.listen(8080, () => {
+    console.log(`HTTP Server is running on port 8080`)
+})
+}

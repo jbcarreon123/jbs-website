@@ -39,11 +39,11 @@
 }
 
 .blog-content code {
-    background: rgb(44, 41, 41);
     font-size: 16px !important;
-    padding: 4px;
-    color: white;
-    border-radius: 5px;
+}
+
+.blog-content pre {
+    padding: 10px;
 }
 
 .blog-author {
