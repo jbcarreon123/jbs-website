@@ -14,6 +14,11 @@
     transition: all 0.5s ease-in-out;
 }
 
+.blog-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
 @media screen and (max-width: 600px) {
     .blog-container, .top-view {
         padding: 10px;
