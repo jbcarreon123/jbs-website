@@ -1,5 +1,6 @@
 :root {
     --text-color: #000000;
+    --text-color-secondary: #363535;
     --text-color-hover: #505050;
     --text-color-active: #979797;
     --background: #ffffff;
@@ -10,12 +11,29 @@
 @media screen and (prefers-color-scheme: dark) {
     :root {
         --text-color: #dadada;
+        --text-color-secondary: #cac6c6;
         --text-color-hover: #b1b1b1;
         --text-color-active: #979797;
         --background: #1a1a1a;
         --view-background: #3d3d3d;
         --tag-background: #413737;
     }
+}
+
+.title, .links {
+    z-index: 10;
+}
+
+.largest {
+    z-index: -10;
+    position: absolute;
+    font-size: 40vw;
+    color: var(--text-color-secondary);
+    opacity: 0.25;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
 }
 
 body {

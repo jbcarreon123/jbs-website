@@ -52,7 +52,7 @@ const marked = await new Marked()
 const app = express();
 const port = 443;
 
-const SITE_ADDRESS = !env.JBIAD_DEBUG ? 'jb.is-a.dev' : 'jb-linpc';
+const SITE_ADDRESS = !env.JBIAD_DEBUG ? 'jb.is-a.dev' : 'localhost';
 
 interface Metadata {
   directoryName: string;
@@ -403,6 +403,42 @@ app.get('/blogs/:blog', (req, res) => {
     res.type('txt').send('[404] Maybe there is something missing.');
   }
 })
+
+app.get('/jaxdfy', (req, res) => {
+  const content = req.query.content;
+  const oembed = path.join(__dirname, `root-nr/only_oembed.html`);
+  if (fs.existsSync(oembed)) {
+    fs.readFile(oembed, 'utf-8', async (err, data) => {
+      let hData = data;
+      hData = hData.replaceAll('[title]', `${jaxdfy(content?.toString())}`);
+      hData = hData.replaceAll('[tool]', 'jaxdfy');
+      hData = hData.replaceAll('[description]', '');
+      res.send(hData)
+    })
+  } else {
+    res.status(500)
+  }
+})
+
+function jaxdfy(content: string | undefined): string {
+  if (content == undefined) {
+    return ""
+  }
+  const cnt_spl = content.split(' ');
+  let fin_str: string[] = [];
+  cnt_spl.forEach((val) => {
+    let char = val.charAt(0);
+
+    if (char.toUpperCase() == char.toLowerCase()) {
+      fin_str.push(val)
+    } else if (char === char.toUpperCase()) {
+      fin_str.push("JaxD" + val)
+    } else {
+      fin_str.push("jaxd" + val)
+    }
+  })
+  return fin_str.join(' ')
+}
 
 app.get('/oembed_blogs/:blog', (req, res) => {
   const blogPage = req.params.blog;
