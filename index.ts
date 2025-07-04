@@ -1,14 +1,8 @@
-import express from "express";
-import sharp from 'sharp';
-import fs from 'fs';
-const https = require('https');
+import { Hono } from 'hono';
 import { Marked } from "marked";
-import { env } from "bun";
-const path = require('path');
-const cors = require('cors');
-import markedShiki from 'marked-shiki'
-import { getHighlighter, bundledLanguages } from 'shiki'
-// npm i @shikijs/transformers
+import markedShiki from 'marked-shiki';
+import { env } from "cloudflare:workers";
+import { getHighlighter, bundledLanguages } from 'shiki';
 import {
   transformerNotationDiff,
   transformerNotationHighlight,
@@ -17,434 +11,241 @@ import {
   transformerNotationErrorLevel,
   transformerMetaHighlight,
   transformerMetaWordHighlight
-} from '@shikijs/transformers'
+} from '@shikijs/transformers';
 
-const highlighter = await getHighlighter({
-  langs: Object.keys(bundledLanguages),
-  themes: ['min-dark', 'min-light']
-})
+const app = new Hono();
 
-const marked = await new Marked()
-.use(
-  markedShiki({
-    highlight(code, lang, props) {
-      return highlighter.codeToHtml(code, {
-        lang,
-        themes: {
-          light: 'min-dark',
-          dark: 'min-light'
-        },
-        meta: { __raw: props.join(' ') }, // required by `transformerMeta*`
-        transformers: [
-          transformerNotationDiff(),
-          transformerNotationHighlight(),
-          transformerNotationWordHighlight(),
-          transformerNotationFocus(),
-          transformerNotationErrorLevel(),
-          transformerMetaHighlight(),
-          transformerMetaWordHighlight()
-        ]
-      })
-    }
-  })
-);
-
-const app = express();
-const port = 443;
-
-const SITE_ADDRESS = !env.JBIAD_DEBUG ? 'jb.is-a.dev' : 'localhost';
-
-interface Metadata {
-  directoryName: string;
-  name: string;
-  author: string;
-  description: string;
+interface Env {
+  ROOT: Fetcher;
 }
 
-async function getImageInfo(filePath: string): Promise<{ width: number | undefined, height: number | undefined, size: number }> {
+async function readTextFile(env: Env, filePath: string): Promise<string> {
   try {
-      const image = sharp(filePath);
-      const metadata = await image.metadata();
-      const stats = fs.statSync(filePath);
-      const fileSizeInBytes = stats.size;
-
-      return {
-          width: metadata.width,
-          height: metadata.height,
-          size: fileSizeInBytes
-      };
-  } catch (err) {
-      throw new Error(`Error processing image`);
+    const file = await env.ROOT.fetch(new Request(`https://placeholder/${filePath}`));
+    if (!file.ok) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    return await file.text();
+  } catch (error) {
+    throw new Error(`Error reading file: ${filePath}, ${error}`);
   }
 }
 
-interface Project {
-  tags: string[];
-  name: string;
-  authors: string;
-  description: string;
-  links?: {
-    url?: string;
-    github?: string;
-    discord?: string;
+async function readBinaryFile(env: Env, filePath: string): Promise<ArrayBuffer> {
+  try {
+    const file = await env.ROOT.fetch(new Request(`https://placeholder/${filePath}`));
+    if (!file.ok) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+    return await file.arrayBuffer();
+  } catch (error) {
+    throw new Error(`Error reading file: ${filePath}, ${error}`);
   }
 }
 
-interface Blog {
-  url: string,
-  name: string,
-  author: string,
-  description: string
+async function fileExists(env: Env, filePath: string): Promise<boolean> {
+  try {
+    const file = await env.ROOT.fetch(new Request(`https://placeholder/${filePath}`));
+    return file.ok;
+  } catch (error) {
+    return false;
+  }
 }
 
-app.use((req,res,next) => {
-  if (req.hostname.includes(SITE_ADDRESS)) 
-    next();
-  else {
-    res.status(403);
-    res.json({ 'error': `Unfortunately, due to security purposes, you are not allowed to use ${req.hostname}. Use ${SITE_ADDRESS} for requests instead.` })
+async function getAllMetadata(): Promise<any> {
+  let req = await fetch('https://jbcarreon123.nekoweb.org/feed.json');
+  let json = await req.json();
+  return json;
+}
+
+app.get('/.well-known/:file', async (c) => {
+  const file = c.req.param('file');
+  const filePath = `.well-known/${file}.txt`;
+
+  if (await fileExists(c.env, filePath)) {
+    const content = await readTextFile(c.env, filePath);
+    return c.text(content);
+  } else {
+    c.status(404);
+    if (c.req.header('accept')?.includes('html')) {
+      const html = await readTextFile(c.env, '404.html');
+      return c.html(html);
+    }
+    if (c.req.header('accept')?.includes('json')) {
+      return c.json({ error: 'Not found' });
+    }
+    return c.text('[404] Maybe there is something missing.');
   }
 });
 
-function getMetadataFiles(dir: string): { filePath: string; directoryName: string }[] {
-  let metadataFiles: { filePath: string; directoryName: string }[] = [];
+app.get('/imgs/:img', async (c) => {
+  const imgFile = c.req.param('img');
+  const imgPath = `imgs/${imgFile}`;
 
-  const files = fs.readdirSync(dir);
+  if (await fileExists(c.env, imgPath)) {
+    const imgBuffer = await readBinaryFile(c.env, imgPath);
 
-  files.forEach(file => {
-      const filePath = path.join(dir, file);
-      const stats = fs.statSync(filePath);
+    const ext = imgFile.split('.').pop()?.toLowerCase();
+    const contentType = ext === 'png' ? 'image/png' :
+      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
+        ext === 'gif' ? 'image/gif' :
+          ext === 'webp' ? 'image/webp' : 'application/octet-stream';
 
-      if (stats.isDirectory()) {
-          metadataFiles = metadataFiles.concat(getMetadataFiles(filePath));
-      } else if (file === 'metadata.json') {
-          metadataFiles.push({ filePath, directoryName: path.basename(dir) });
-      }
-  });
-
-  return metadataFiles;
-}
-
-function getProjectFiles(dir: string): { filePath: string }[] {
-  let projectFiles: { filePath: string }[] = [];
-
-  const files = fs.readdirSync(dir);
-
-  files.forEach(file => {
-      const filePath = path.join(dir, file);
-
-      if (file.endsWith('.json')) {
-          projectFiles.push({ filePath });
-      }
-  });
-
-  return projectFiles;
-}
-
-function readProject(filePath: string): Project {
-  const rawData = fs.readFileSync(filePath, 'utf-8');
-  const project: Project = JSON.parse(rawData);
-
-  return project;
-}
-function readMetadata(filePath: string, directoryName: string): Metadata {
-  const rawData = fs.readFileSync(filePath, 'utf-8');
-  const metadata: Metadata = JSON.parse(rawData);
-  metadata.directoryName = directoryName;
-
-  return metadata;
-}
-
-function getAllMetadata(dir: string): Metadata[] {
-  const metadataFiles = getMetadataFiles(dir);
-  const allMetadata: Metadata[] = [];
-
-  metadataFiles.forEach(({ filePath, directoryName }) => {
-      const metadata = readMetadata(filePath, directoryName);
-      allMetadata.push(metadata);
-  });
-
-  return allMetadata;
-}
-
-function getAllProjects(dir: string): Project[] {
-  const projectFiles = getProjectFiles(dir);
-  const allProject: Project[] = [];
-
-  projectFiles.forEach(({ filePath }) => {
-      const project = readProject(filePath);
-      allProject.push(project);
-  });
-
-  return allProject;
-}
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'root/index.html'));
-});
-
-app.get('/main.css', (req, res) => {
-  res.sendFile(path.join(__dirname, 'root/main.css'));
-});
-
-app.get('/.well-known/:file', (req, res) => {
-  const file = req.params.file;
-  const filePath = path.join(__dirname, `.well-known/${file}.txt`)
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
-    }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
-    }
-    res.type('txt').send('[404] Maybe there is something missing.');
-  }
-})
-
-app.get('/imgs/:img', (req, res) => {
-  const imgFile = req.params.img
-  const filePath = path.join(__dirname, `root-nr/img.html`)
-  const img = path.join(__dirname, `imgs/${imgFile}`);
-  if (fs.existsSync(img)) {
-    fs.readFile(filePath, 'utf-8', (err, data) => {
-        var  hData = data;
-        getImageInfo(img).then((meta) => {
-          hData = hData.replaceAll('[img.path]', `/raw_img/${imgFile}`)
-          hData = hData.replaceAll('[img.name]', `${imgFile}`)
-          hData = hData.replaceAll('[img.dimensions]', `${meta.width}x${meta.height}`)
-          hData = hData.replaceAll('[img.width]', `${meta.width}`)
-          hData = hData.replaceAll('[img.height]', `${meta.height}`)
-          hData = hData.replaceAll('[img.size]', `${(meta.size / 1048576).toFixed(2)}MB`)
-          res.send(hData);
-        });
+    return new Response(imgBuffer, {
+      headers: {
+        'Content-Type': contentType,
+      },
     });
   } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
+    c.status(404);
+    if (c.req.header('accept')?.includes('html')) {
+      const html = await readTextFile(c.env, '404.html');
+      return c.html(html);
     }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
+    if (c.req.header('accept')?.includes('json')) {
+      return c.json({ error: 'Not found' });
     }
-    res.type('txt').send('[404] Maybe there is something missing.');
-  }
-})
-
-app.get('/raw_img/:img', (req, res) => {
-  const imgFile = req.params.img
-  if (fs.existsSync(path.join(__dirname, `imgs/${imgFile}`))) {
-    res.sendFile(path.join(__dirname, `imgs/${imgFile}`));
-  } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
-    }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
-    }
-    res.type('txt').send('[404] Maybe there is something missing.');
+    return c.text('[404] Maybe there is something missing.');
   }
 });
 
-app.get('/imgs', (req, res) => {
-  res.status(404);
-  if (req.accepts('html')) {
-    res.sendFile(path.join(__dirname, 'root/404.html'));
-    return;
-  }
-  if (req.accepts('json')) {
-    res.json({ error: 'Not found' });
-    return;
-  }
-  res.type('txt').send('[404] Maybe there is something missing.');
-})
+app.get('/fa/css/:file', async (c) => {
+  const file = c.req.param('file');
+  const filePath = `font-awesome/css/${file}`;
 
-app.get('/projects', (req, res) => {
-  const projectPath = path.join(__dirname, `root-nr/projects.html`);
-  fs.readFile(projectPath, 'utf8', (bErr, bData) => {
-    let projects = "";
-    const directoryPath = path.join(__dirname, `projects/`);
-    const allMetadata = getAllProjects(directoryPath);
-    allMetadata.forEach(metadata => {
-      projects += `
-      <div class="project">
-          <div class="project-tags font-sec">
-      `
-
-      metadata.tags.forEach(tag => {
-        projects += `
-              <div class="project-tag">${tag}</div>
-        `
-      })
-
-      projects += `
-          </div>
-          <div class="blogv-title font-pri">
-              ${metadata.name}
-          </div>
-          <div class="blog-author font-sec">
-              by ${metadata.authors}
-          </div>
-          <div class="blog-description font-sec">
-              ${metadata.description}
-          </div>
-      `
-
-      if (metadata.links != undefined) {
-        projects += `<div class="project-links font-sec">
-        `
-        if (metadata.links.url != undefined) {
-          projects += `
-            <a class="icon-link" href="${metadata.links.url}"><i class="fa-solid fa-link"></i></a>
-          `
-        }
-        if (metadata.links.github != undefined) {
-          projects += `
-            <a class="icon-link" href="${metadata.links.github}"><i class="fa-brands fa-github"></i></a>
-          `
-        }
-        if (metadata.links.discord != undefined) {
-          projects += `
-            <a class="icon-link" href="${metadata.links.discord}"><i class="fa-brands fa-discord"></i></a>
-          `
-        }
-        projects += `
-          </div>
-        `
-      }
-
-      projects += `
-      </div>`
-    });
-    bData = bData.replaceAll('[projects.view]', projects)
-    res.send(bData);
-  });
-})
-
-app.get('/fa/css/:file', (req, res) => {
-  const file = req.params.file;
-  const filePath = path.join(__dirname, `font-awesome/css/${file}`);
-  res.sendFile(filePath)
-})
-
-app.get('/fa/webfonts/:file', (req, res) => {
-  const file = req.params.file;
-  const filePath = path.join(__dirname, `font-awesome/webfonts/${file}`);
-  res.sendFile(filePath)
-})
-
-app.get('/blogs/:blog', (req, res) => {
-  const blogPage = req.params.blog;
-  const filePath = path.join(__dirname, `blogs/${blogPage}/contents.md`);
-  const metaPath = path.join(__dirname, `blogs/${blogPage}/metadata.json`);
-  const blogPath = path.join(__dirname, `root-nr/blog.html`);
-  if (fs.existsSync(filePath) && fs.existsSync(metaPath)) {
-    fs.readFile(blogPath, 'utf8', (bErr, bData) => {
-      var hData = bData;
-      fs.readFile(filePath, 'utf-8', async (err, data) => {
-          const metadata = readMetadata(metaPath, "");
-          if (err) {
-            return res.status(500).send('Error reading the file');
-          }
-          try {
-            const html = await marked.parse(data)
-            hData = hData.replaceAll('[blog.content]', `${html}`)
-          } catch (e) {
-            console.error(e)
-          }
-          hData = hData.replaceAll('[blog.title]', `${metadata.name}`)
-          hData = hData.replaceAll('[blog.author]', `by ${metadata.author}`)
-          hData = hData.replaceAll('[blog.description]', `${metadata.description}`)
-          hData = hData.replaceAll('[blog.oembed]', `http://${req.get('host')}/oembed_blogs/${blogPage}`)
-          res.send(hData);
-      });
+  if (await fileExists(c.env, filePath)) {
+    const content = await readTextFile(c.env, filePath);
+    return new Response(content, {
+      headers: {
+        'Content-Type': 'text/css',
+      },
     });
   } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
-    }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
-    }
-    res.type('txt').send('[404] Maybe there is something missing.');
+    return c.notFound();
   }
-})
+});
 
-app.get('/blogs', (req, res) => {
-  const blogPath = path.join(__dirname, `root-nr/blogs.html`);
-  fs.readFile(blogPath, 'utf8', (bErr, bData) => {
-    let blogs = "";
-    const directoryPath = path.join(__dirname, `blogs/`);
-    const allMetadata = getAllMetadata(directoryPath);
-    allMetadata.forEach(metadata => {
-      blogs += `
-      <div class="blog">
-          <div class="blogv-title font-pri">
-              <a href="/blogs/${metadata.directoryName}">${metadata.name}</a>
-          </div>
-          <div class="blog-author font-sec">
-              by ${metadata.author}
-          </div>
-          <div class="blog-description font-sec">
-              ${metadata.description}
-          </div>
-      </div>
-      `
+app.get('/fa/webfonts/:file', async (c) => {
+  const file = c.req.param('file');
+  const filePath = `font-awesome/webfonts/${file}`;
+
+  if (await fileExists(c.env, filePath)) {
+    const content = await readBinaryFile(c.env, filePath);
+
+    const ext = file.split('.').pop()?.toLowerCase();
+    const contentType = ext === 'woff2' ? 'font/woff2' :
+      ext === 'woff' ? 'font/woff' :
+        ext === 'ttf' ? 'font/ttf' : 'application/octet-stream';
+
+    return new Response(content, {
+      headers: {
+        'Content-Type': contentType,
+      },
     });
-    bData = bData.replaceAll('[blogs.view]', blogs)
-    res.send(bData);
-  });
-}) 
-
-app.get('/:doc', (req, res) => {
-  const page = req.params.doc;
-  if (fs.existsSync(path.join(__dirname, `root/${page}`))) {
-    res.sendFile(path.join(__dirname, `root/${page}`));
-  } else if (fs.existsSync(path.join(__dirname, `root/${page}.html`))) {
-    res.sendFile(path.join(__dirname, `root/${page}.html`));
   } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
-    }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
-    }
-    res.type('txt').send('[404] Maybe there is something missing.');
+    return c.notFound();
   }
-})
+});
 
-if (!env.JBIAD_DEBUG) {
-const credentials = {
-  key: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/privkey.pem`, 'utf8'),
-  cert: fs.readFileSync(`/etc/letsencrypt/live/${SITE_ADDRESS}/fullchain.pem`, 'utf8')
+app.get('/blogs/:blog', async (c) => {
+  const blogPage = c.req.param('blog');
+  const blogPath = 'root-nr/blog.html';
+  const allMetadata = await getAllMetadata();
+  const blog = allMetadata.items.find((p) => {
+    let name = new URL(p.url).pathname.split('/')[2];
+    return name == blogPage;
+  })
+
+  if (blog) {
+    const template = await readTextFile(c.env, blogPath);
+
+    try {
+      
+      let result = template;
+      result = result.replaceAll('[blog.content]', blog.content_html);
+      result = result.replaceAll('[blog.title]', blog.title);
+      result = result.replaceAll('[blog.author]', `by ${blog.author.name}`);
+      result = result.replaceAll('[blog.description]', blog.summary);
+
+      return c.html(result);
+    } catch (e) {
+      console.error(e);
+      return c.text('Error processing blog content', 500);
+    }
+  } else {
+    c.status(404);
+    if (c.req.header('accept')?.includes('html')) {
+      const html = await readTextFile(c.env, '404.html');
+      return c.html(html);
+    }
+    if (c.req.header('accept')?.includes('json')) {
+      return c.json({ error: 'Not found' });
+    }
+    return c.text('[404] Maybe there is something missing.');
+  }
+});
+
+app.get('/blogs', async (c) => {
+  const blogPath = 'root-nr/blogs.html';
+  const template = await readTextFile(c.env, blogPath);
+
+  let blogs = "";
+  const allMetadata = await getAllMetadata();
+
+  allMetadata.items.forEach(metadata => {
+    blogs += `
+    <div class="blog">
+        <div class="blogv-title font-pri">
+            <a href="/blogs/${new URL(metadata.url).pathname.split('/')[2]}">${metadata.title}</a>
+        </div>
+        <div class="blog-author font-sec">
+            by ${metadata.author.name}
+        </div>
+        <div class="blog-description font-sec">
+            ${metadata.summary}
+        </div>
+    </div>
+    `;
+  });
+
+  const html = template.replaceAll('[blogs.view]', blogs);
+  return c.html(html);
+});
+
+app.get('/:doc', async (c) => {
+  const page = c.req.param('doc');
+
+  let filePath = `${page}`;
+  if (!(await fileExists(c.env, filePath))) {
+    filePath = `${page}.html`;
+  }
+
+  if (await fileExists(c.env, filePath)) {
+    const content = await readTextFile(c.env, filePath);
+
+    const ext = page.split('.').pop()?.toLowerCase();
+    const contentType = ext === 'html' ? 'text/html' :
+      ext === 'css' ? 'text/css' :
+        ext === 'js' ? 'text/javascript' : 'text/plain';
+
+    return new Response(content, {
+      headers: {
+        'Content-Type': contentType,
+      },
+    });
+  } else {
+    c.status(404);
+    if (c.req.header('accept')?.includes('html')) {
+      const html = await readTextFile(c.env, '404.html');
+      return c.html(html);
+    }
+    if (c.req.header('accept')?.includes('json')) {
+      return c.json({ error: 'Not found' });
+    }
+    return c.text('[404] Maybe there is something missing.');
+  }
+});
+
+export default {
+  fetch: app.fetch,
 };
-
-const httpsServer = https.createServer(credentials, app);
-
-httpsServer.listen(port, () => {
-    console.log(`HTTPS Server is running on port ${port}`);
-});
-
-app.listen(80, () => {
-    console.log(`HTTP Server is running on port 80`)
-})
-} else {
-app.listen(8080, () => {
-    console.log(`HTTP Server is running on port 8080`)
-})
-}

@@ -20,6 +20,10 @@
     }
 }
 
+* {
+    overflow-wrap: anywhere;
+}
+
 .title, .links {
     z-index: 10;
 }
@@ -123,7 +127,8 @@ html, body, .img-container {
 
 .title {
     font-weight: 600;
-    font-size: clamp(67px, 10vw, 164px);
+    font-size: clamp(67px, 10vw, 144px);
+    width: 100%;
 }
 
 .subtitle {

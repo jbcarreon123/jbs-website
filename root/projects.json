@@ -1,0 +1,30 @@
+[
+    {
+        "tags": [ "rust", "discord-bot" ],
+        "name": "jUtils",
+        "authors": "jbcarreon123",
+        "description": "jUtils is a utilities discord bot, that is written in Rust.",
+        "links": {
+            "github": "https://github.com/jbcarreon123/jUtils"
+        }
+    },
+    {
+        "tags": [ "discord-bot", "typescript", "temp-channels" ],
+        "name": "Liberation",
+        "authors": "jbcarreon123, Gowthr, Moore, and Jaden",
+        "description": "Liberation is a Discord bot that offers temporary voice channels, temporary text channels, and tickets.",
+        "links": {
+            "github": "https://github.com/liberation-dev/Liberation",
+            "discord": "https://discord.gg/nqgwdD7H"
+        }
+    },
+    {
+        "tags": [ "python", "discord-bot" ],
+        "name": "Y2DL",
+        "authors": "jbcarreon123",
+        "description": "Y2DL is a Discord bot that gets YouTube and Twitch channel information.",
+        "links": {
+            "github": "https://github.com/jbcarreon123/Y2DL"
+        }
+    }
+]
