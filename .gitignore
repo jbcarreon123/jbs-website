@@ -176,3 +176,4 @@ dist
 imgs/*
 
 .well_known/*
+.wrangler/

@@ -162,7 +162,7 @@ app.get('/blogs/:blog', async (c) => {
     try {
       
       let result = template;
-      result = result.replaceAll('[blog.content]', blog.content_html.replaceAll('src="/', 'src="https://jbcarreon123.nekoweb.org/'));
+      result = result.replaceAll('[blog.content]', (blog.content_html as string).replaceAll('/imgs', 'https://jbcarreon123.nekoweb.org/imgs'));
       result = result.replaceAll('[blog.title]', blog.title);
       result = result.replaceAll('[blog.author]', `by ${blog.author.name}`);
       result = result.replaceAll('[blog.description]', blog.summary);
