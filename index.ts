@@ -106,8 +106,6 @@ app.use((req,res,next) => {
   }
 });
 
-app.use('/api', cors());
-
 function getMetadataFiles(dir: string): { filePath: string; directoryName: string }[] {
   let metadataFiles: { filePath: string; directoryName: string }[] = [];
 
@@ -194,26 +192,6 @@ app.get('/.well-known/:file', (req, res) => {
   const filePath = path.join(__dirname, `.well-known/${file}.txt`)
   if (fs.existsSync(filePath)) {
     res.sendFile(filePath);
-  } else {
-    res.status(404);
-    if (req.accepts('html')) {
-      res.sendFile(path.join(__dirname, 'root/404.html'));
-      return;
-    }
-    if (req.accepts('json')) {
-      res.json({ error: 'Not found' });
-      return;
-    }
-    res.type('txt').send('[404] Maybe there is something missing.');
-  }
-})
-
-app.get('/re/:redirect', (req, res) => {
-  const redi = req.params.redirect;
-  const redirectPath = path.join(__dirname, `redirects/${redi}.txt`);
-  if (fs.existsSync(redirectPath)) {
-    const redirect = fs.readFileSync(redirectPath, 'utf-8');
-    res.redirect(308, redirect);
   } else {
     res.status(404);
     if (req.accepts('html')) {
@@ -404,57 +382,6 @@ app.get('/blogs/:blog', (req, res) => {
   }
 })
 
-app.get('/jaxdfy', (req, res) => {
-  const content = req.query.content;
-  const oembed = path.join(__dirname, `root-nr/only_oembed.html`);
-  if (fs.existsSync(oembed)) {
-    fs.readFile(oembed, 'utf-8', async (err, data) => {
-      let hData = data;
-      hData = hData.replaceAll('[title]', `${jaxdfy(content?.toString())}`);
-      hData = hData.replaceAll('[tool]', 'jaxdfy');
-      hData = hData.replaceAll('[description]', '');
-      res.send(hData)
-    })
-  } else {
-    res.status(500)
-  }
-})
-
-function jaxdfy(content: string | undefined): string {
-  if (content == undefined) {
-    return ""
-  }
-  const cnt_spl = content.split(' ');
-  let fin_str: string[] = [];
-  cnt_spl.forEach((val) => {
-    let char = val.charAt(0);
-
-    if (char.toUpperCase() == char.toLowerCase()) {
-      fin_str.push(val)
-    } else if (char === char.toUpperCase()) {
-      fin_str.push("JaxD" + val)
-    } else {
-      fin_str.push("jaxd" + val)
-    }
-  })
-  return fin_str.join(' ')
-}
-
-app.get('/oembed_blogs/:blog', (req, res) => {
-  const blogPage = req.params.blog;
-  const metaPath = path.join(__dirname, `blogs/${blogPage}/metadata.json`);
-  const metadata = require(metaPath);
-  
-  const oembed = {
-    "version": "1.0",
-    "type": "link",
-    "title": metadata.name,
-    "author_name": "jbcarreon123"
-  }
-
-  res.send(oembed);
-})
-
 app.get('/blogs', (req, res) => {
   const blogPath = path.join(__dirname, `root-nr/blogs.html`);
   fs.readFile(blogPath, 'utf8', (bErr, bData) => {
@@ -480,23 +407,6 @@ app.get('/blogs', (req, res) => {
     res.send(bData);
   });
 }) 
-
-app.get('/api/blogs', (req, res) => {
-  let blogs: Blog[] = [];
-  const directoryPath = path.join(__dirname, `blogs/`);
-  const allMetadata = getAllMetadata(directoryPath);
-  allMetadata.forEach(metadata => {
-    let blog: Blog = {
-      url: `http://${req.get('host')}/blogs/${metadata.directoryName}`,
-      name: metadata.name,
-      description: metadata.description,
-      author: metadata.author
-    }
-    blogs.push(blog)
-  });
-  res.setHeader('content-type', 'application/json');
-  res.send(JSON.stringify(blogs));
-})
 
 app.get('/:doc', (req, res) => {
   const page = req.params.doc;
